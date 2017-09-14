@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.tarena.ht.mapper.UserMapper">
+	
+	<!--查询用户表，内部实现了4张表关联查询  -->
+	<select id="findAll" resultMap="userRM">
+	<!--sql语句全部小写   末尾不要加；号 -->
+	select * from 
+	(select * from 
+	user_p u
+	       left join
+	(select u.user_info_id,u.name,u.card_no,u.manager_id,m.m_name,
+	u.join_date,u.salary,u.birthday,u.gender,u.station,u.telephone,u.user_level,
+	u.remark,u.order_no from 
+	user_info_p u
+	            left join
+	(select user_info_id m_id,name m_name from user_info_p) m
+	            on u.manager_id = m.m_id) info
+	            
+	       on u.user_id = info.user_info_id)u
+	       left join
+	(select dept_id d_id, dept_name from dept_p) d
+	       on u.dept_id = d.d_id
+	</select>
+	
+	<!-- 
+		autoMapping="true"  主表对象能够完成自动映射  
+		1.字段与属性一致
+		2.驼峰映射     user_id~~~~userId
+		杠杠 在映射文件中有特殊含义 注释中不要写
+	 -->
+	<resultMap type="User" id="userRM" autoMapping="true">
+		<!--完成主表映射  -->
+		<id column="user_id" property="userId"/>
+		
+		<!--封装userInfo对象  -->
+		<association property="userInfo" javaType="UserInfo" resultMap="infoRM"/>
+		
+		<!--封装部门对象  -->
+		<association property="dept" javaType="Dept">
+			<id column="dept_id" property="deptId"/>
+			<result column="dept_name" property="deptName"/>
+		</association>
+	</resultMap>
+	
+	<!--为了封装userInfo的结果集  -->
+	<resultMap type="UserInfo" id="infoRM" autoMapping="true">
+		<id column="user_info_id" property="userInfoId"/>
+		<!--封装上级领导信息 -->
+		<association property="manager" javaType="UserInfo">
+			<id property="userInfoId" column="manager_id"/>
+			<result property="name" column="m_name"/>
+		</association>
+	</resultMap>
+	
+	<!--修改用户状态  -->
+	<update id="updateState">
+		update user_p set state = #{state} where user_id in (
+			
+			<!--collection="userIds" 写的是map中的key  -->
+			<foreach collection="userIds" item="id" separator=",">
+				#{id}
+			</foreach>
+		)
+	</update>
+	
+	
+	<!--删除用户信息  -->
+	<delete id="deleteUser">
+		delete from user_p where user_id in (
+			<!--由于传递的参数就是数组  -->
+			<foreach collection="array" item="id" separator=",">
+				#{id}
+			</foreach>
+		)
+	</delete>
+	
+	<!--用户新增  -->
+	<insert id="saveUser">
+		<!--作业，自己补齐列名
+			问题：由于页面中没有传递数据导致取值为null,mybatis中不允许出现null值
+			方法：添加指定的类型，进行正确的解析
+			后期开发：应该为每一个参数都添加jdbcType
+		  -->
+		insert into user_p values(
+			#{userId},
+			#{dept.deptId},
+			#{username},
+			#{password},
+			#{state},
+			#{createBy,jdbcType=VARCHAR},
+			#{createDept,jdbcType=VARCHAR},
+			#{createTime,jdbcType=DATE},
+			#{updateBy,jdbcType=VARCHAR},
+			#{updateTime,jdbcType=DATE}
+		)
+	</insert>
+	
+	
+	<!--查询用户信息  -->
+	<select id="findUserById" resultMap="userRM">
+		select * from 
+	(select * from 
+	user_p u
+	       left join
+	(select u.user_info_id,u.name,u.card_no,u.manager_id,m.m_name,
+	u.join_date,u.salary,u.birthday,u.gender,u.station,u.telephone,u.user_level,
+	u.remark,u.order_no from 
+	user_info_p u
+	            left join
+	(select user_info_id m_id,name m_name from user_info_p) m
+	            on u.manager_id = m.m_id) info
+	            
+	       on u.user_id = info.user_info_id)u
+	       left join
+	(select dept_id d_id, dept_name from dept_p) d
+	       on u.dept_id = d.d_id
+	 where user_id = #{userId}
+	</select>
+	
+	<!--用户的更新操作  -->
+	<update id="updateUser">
+		update user_p 
+		<set>
+			dept_id = #{dept.deptId},
+			username = #{username},
+			password = #{password},
+			state = #{state},
+			<if test="createBy !=null">create_by = #{createBy},</if>
+			<if test="createDept !=null">create_dept = #{createDept},</if>
+			<if test="createTime !=null">create_time = #{createTime},</if>
+			<if test="updateBy !=null">update_by = #{updateBy},</if>
+			<if test="updateTime !=null">update_time = #{updateTime}</if>
+		</set>
+		where user_id = #{userId}
+	</update>
+	
+	
+	<select id="findUserByUP" resultMap="userRM">
+		select * from 
+	(select * from 
+	user_p u
+	       left join
+	(select u.user_info_id,u.name,u.card_no,u.manager_id,m.m_name,
+	u.join_date,u.salary,u.birthday,u.gender,u.station,u.telephone,u.user_level,
+	u.remark,u.order_no from 
+	user_info_p u
+	            left join
+	(select user_info_id m_id,name m_name from user_info_p) m
+	            on u.manager_id = m.m_id) info
+	            
+	       on u.user_id = info.user_info_id)u
+	       left join
+	(select dept_id d_id, dept_name from dept_p) d
+	       on u.dept_id = d.d_id
+	 where username = #{username} and password = #{password}
+	
+	</select>
+	
+	
+	
+	
+	
+	
+	
+</mapper>
